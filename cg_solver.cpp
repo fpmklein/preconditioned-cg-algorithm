@@ -56,6 +56,8 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
 
   // start CG iteration
   int iter = -1;
+  double scaledResNorm;
+  double norm_b = dot(n,b,b);
   while (true)
   {
     iter++;
@@ -67,10 +69,11 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
         t.b = 2.0 * sizeof(double) * n;
         rho = dot(n,r,r);
     }
-
+    scaledResNorm = rho / norm_b; 
     if (verbose)
     {
-      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho << std::endl;
+      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho 
+                << "\t" << std::setw(8) << std::setprecision(4) << scaledResNorm << std::endl;
     }
 
     // check for convergence or failure

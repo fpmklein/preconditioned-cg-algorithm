@@ -102,7 +102,7 @@ int main(int argc, char* argv[])
       }
 
     // solve the linear system of equations using CG
-    int numIter, maxIter=500;
+    int numIter, maxIter=100;
     double resNorm, tol=std::sqrt(std::numeric_limits<double>::epsilon());
 
     try
@@ -110,8 +110,11 @@ int main(int argc, char* argv[])
       {
         // use preconditioned cg solver
         Timer t("preconditioned cg_solver");
+        double sum = 0.0;
         precond_cg_solver(&L, n, x, b, tol, maxIter, &resNorm, &numIter);
-        std::cout<<"x[0] = "<<x[0]<<", x["<<n/2<<"] = "<<x[n/2]<< ", x["<<n-1<<"] = "<<x[n-1]<<std::endl;
+        for (int i = 0; i<n; i++) sum += std::pow(x[i],2);
+        sum = std::sqrt(sum);
+        std::cout<<"||x||_2 = "<<sum<<std::endl;
       }
     } catch(std::exception e)
     {
