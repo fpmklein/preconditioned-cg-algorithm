@@ -1,4 +1,5 @@
 CXX=g++
+
 CXX_FLAGS=-O3 -march=native -fopenmp -std=c++17
 
 DEFS=-DNDEBUG
