@@ -300,11 +300,13 @@ void apply_stencil3d(stencil3d const* S,
   return;
 }
 
-void apply_jacobi(int n, double s,
+void apply_jacobi(stencil3d const* S,
         double const* u, double* v)
 {
+  double inv_c = 1.0 / S->value_c;
+  int n = S->nx * S->ny * S->nz;
   #pragma omp parallel for schedule(static)
-  for (int t = 0; t < n; t++)
-    v[t] = s * u[t];
+  for (int i = 0; i < n; i++)
+    v[i] = inv_c * u[i];
   return;
 }
