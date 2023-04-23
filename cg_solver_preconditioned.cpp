@@ -40,8 +40,8 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
   {
     iter++;
     //solve z = M^{-1} r, with M the Jacobian preconditioner
-    //z = s*r, s=1.0/op->value_c
-    apply_jacobi(n, 1.0/op->value_c, r, z);
+    //z = inv_c*r, inv_c=1.0/op->value_c
+    apply_jacobi(op, r, z);
 
     // rho = <r, z>
     rho = dot(n,r,z);
