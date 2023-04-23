@@ -4,7 +4,7 @@
 #SBATCH -n 1
 #SBATCH -c 48
 #SBATCH --mem=0
-#SBATCH --account=Education-EEMCS-Courses-WI4450
+#SBATCH --account=education-eemcs-courses-wi4450 --reservation=wi4450
 
 # run CG for a n^3 Poisson problem
 n=600
