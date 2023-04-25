@@ -146,9 +146,10 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
   delete [] p;
   delete [] q;
   delete [] r;
-
+  delete [] z;
+  
   // return number of iterations and achieved residual
-  *resNorm = rho;
+  *resNorm = rho_r;
   *numIter = iter;
   return;
 }
