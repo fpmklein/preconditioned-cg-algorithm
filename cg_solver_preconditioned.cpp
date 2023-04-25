@@ -22,7 +22,7 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
   double *q = new double[n];
   double *r = new double[n];
   double *z = new double[n];
-  double alpha, beta, rho=1.0, rho_old=0.0, rho_r = 1.0;
+  double alpha, beta, rho=1.0, rho_old=0.0, rho_r=1.0;
 
   // r = op * x
   {
@@ -71,9 +71,13 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
         t.b = 2.0 * sizeof(double) * n;
         rho = dot(n,r,z);
     }
-    
-    rho_r = dot(n,r,r);
-    
+    // rho = <r, z>
+    {
+        Timer t("dot");
+        t.m = 2.0 * n;
+        t.b = 2.0 * sizeof(double) * n;
+        rho_r = dot(n,r,r);
+    }
     if (verbose)
     {
       std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho_r << std::endl;
