@@ -39,13 +39,6 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
       t.b = 3.0 * sizeof(double) * n ;
       axpby(n, 1.0, b, -1.0, r);
   }
-  
-  {
-        Timer t("apply_jacobi");
-        t.m = 1.0 * n * sizeof(double);
-        t.b = 3.0 * sizeof(int) + 1.0 * sizeof(double) + 1.0 * n * sizeof(double);
-        apply_jacobi(op,r,z);
-  }
 
   {
       Timer t("init");
@@ -62,13 +55,15 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
 
   // start CG iteration
   int iter = -1;
-  double scaledResNorm;
-  double *precond_b = new double[n];
-  apply_jacobi(op, b, precond_b);
-  double norm_precond_b = dot(n,precond_b,precond_b);
   while (true)
   {
     iter++;
+    {
+        Timer t("apply_jacobi");
+        t.m = 1.0 * n * sizeof(double);
+        t.b = 3.0 * sizeof(int) + 1.0 * sizeof(double) + 1.0 * n * sizeof(double);
+        apply_jacobi(op,r,z);
+    }
     // rho = <r, z>
     {
         Timer t("dot");
@@ -77,11 +72,9 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
         rho = dot(n,r,z);
     }
     
-    scaledResNorm = rho / norm_precond_b; 
     if (verbose)
     {
-      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho 
-                << "\t" << std::setw(8) << std::setprecision(4) << scaledResNorm << std::endl;
+      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho  << std::endl;
     }
 
     // check for convergence or failure
@@ -141,13 +134,6 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
     }
 
     std::swap(rho_old, rho);
-    
-    {
-        Timer t("apply_jacobi");
-        t.m = 1.0 * n * sizeof(double);
-        t.b = 3.0 * sizeof(int) + 1.0 * sizeof(double) + 1.0 * n * sizeof(double);
-        apply_jacobi(op,r,z);
-  }
   }// end of while-loop
 
   // clean up
