@@ -22,7 +22,7 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
   double *q = new double[n];
   double *r = new double[n];
   double *z = new double[n];
-  double alpha, beta, rho=1.0, rho_old=0.0;
+  double alpha, beta, rho=1.0, rho_old=0.0, rho_r = 1.0;
 
   // r = op * x
   {
@@ -72,13 +72,15 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
         rho = dot(n,r,z);
     }
     
+    rho_r = dot(n,r,r);
+    
     if (verbose)
     {
-      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho  << std::endl;
+      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho_r << std::endl;
     }
 
     // check for convergence or failure
-    if ((std::sqrt(rho) < tol) || (iter > maxIter))
+    if ((std::sqrt(rho_r) < tol) || (iter > maxIter))
     {
       break;
     }
