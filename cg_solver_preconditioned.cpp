@@ -58,19 +58,6 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
   while (true)
   {
     iter++;
-    {
-        Timer t("apply_jacobi");
-        t.m = 1.0 * n * sizeof(double);
-        t.b = 3.0 * sizeof(int) + 1.0 * sizeof(double) + 1.0 * n * sizeof(double);
-        apply_jacobi(op,r,z);
-    }
-    // rho = <r, z>
-    {
-        Timer t("dot");
-        t.m = 2.0 * n;
-        t.b = 2.0 * sizeof(double) * n;
-        rho = dot(n,r,z);
-    }
     // rho = <r, r>
     {
         Timer t("dot");
@@ -80,7 +67,11 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
     }
     if (verbose)
     {
-      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho_r << std::endl;
+      double sum = 0.0;
+      for (int i = 0; i<n; i++) sum += std::pow(x[i],2);
+      sum = std::sqrt(sum);
+      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho_r 
+                << "\t" << std::setw(8) << std::setprecision(4) << sum << std::endl;
     }
 
     // check for convergence or failure
@@ -89,6 +80,21 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
       break;
     }
 
+    {
+        Timer t("apply_jacobi");
+        t.m = 1.0 * n * sizeof(double);
+        t.b = 3.0 * sizeof(int) + 1.0 * sizeof(double) + 1.0 * n * sizeof(double);
+        apply_jacobi(op,r,z);
+    }
+    
+    // rho = <r, z>
+    {
+        Timer t("dot");
+        t.m = 2.0 * n;
+        t.b = 2.0 * sizeof(double) * n;
+        rho = dot(n,r,z);
+    }
+    
     if (rho_old==0.0)
     {
       alpha = 0.0;

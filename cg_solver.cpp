@@ -69,7 +69,11 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
     }
     if (verbose)
     {
-      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho << std::endl;
+      double sum = 0.0;
+      for (int i = 0; i<n; i++) sum += std::pow(x[i],2);
+      sum = std::sqrt(sum);
+      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho 
+                << "\t" << std::setw(8) << std::setprecision(4) << sum << std::endl;
     }
 
     // check for convergence or failure
@@ -129,7 +133,7 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
      }
     std::swap(rho_old, rho);
   }// end of while-loop
-
+  
   // clean up
   delete [] p;
   delete [] q;
