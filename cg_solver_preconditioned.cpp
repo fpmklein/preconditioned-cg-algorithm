@@ -71,7 +71,7 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
         t.b = 2.0 * sizeof(double) * n;
         rho = dot(n,r,z);
     }
-    // rho = <r, z>
+    // rho = <r, r>
     {
         Timer t("dot");
         t.m = 2.0 * n;
@@ -146,8 +146,6 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
   delete [] p;
   delete [] q;
   delete [] r;
-  //clean up extra vector
-  delete [] precond_b;
 
   // return number of iterations and achieved residual
   *resNorm = rho;
