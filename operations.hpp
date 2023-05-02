@@ -86,4 +86,7 @@ void apply_jacobi_pre(stencil3d const* S,
 void copy(int n, double const* u, double* v);
 
 void apply_jacobi_iterations(stencil3d const* S,
-        double const* u, double* v, double c, int iter_max);
+        double const* u, double* v, int iter_max);
+
+void apply_gauss_seidel(stencil3d const* S,
+        double const* u, double* v, int iter_max);
