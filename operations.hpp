@@ -80,7 +80,10 @@ void apply_stencil3d(stencil3d const* op,
         double const* u, double* v);
 
 //v=s*u, where s a scalar and u,v vectors
-void apply_jacobi(stencil3d const* S,
+void apply_jacobi_pre(stencil3d const* S,
         double const* u, double* v);
+        
+void copy(int n, double const* u, double* v);
 
-
+void apply_jacobi_iterations(stencil3d const* S,
+        double const* u, double* v, double c, int iter_max);

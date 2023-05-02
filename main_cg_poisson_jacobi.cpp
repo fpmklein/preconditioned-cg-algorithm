@@ -1,5 +1,5 @@
 #include "operations.hpp"
-#include "cg_solver_preconditioned.hpp"
+#include "cg_solver_jacobi.hpp"
 #include "timer.hpp"
 
 #include <iostream>
@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
         // use preconditioned cg solver
         Timer t("cg_solver_pre");
         double sum = 0.0;
-        precond_cg_solver(&L, n, x, b, tol, maxIter, &resNorm, &numIter);
+        jacobi_cg_solver(&L, n, x, b, tol, maxIter, &resNorm, &numIter);
         for (int i = 0; i<n; i++) sum += std::pow(x[i],2);
         sum = std::sqrt(sum);
         std::cout<<"||x||_2 = "<<sum<<std::endl;

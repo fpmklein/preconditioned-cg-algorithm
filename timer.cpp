@@ -45,7 +45,6 @@ void Timer::summarize(std::ostream& os)
   for (auto [label, time]: times_)
   {
     int count = counts_[label];
-    int itPerThread = int(count) / int(n_threads);
     double gflops = flops_[label] / convert; //convert flop to Gflop
     double gbytes = bytes_[label] / convert; //convert byte to Gbyte
     double mean_time = time/double(count);

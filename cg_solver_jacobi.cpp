@@ -1,4 +1,4 @@
-#include "cg_solver.hpp"
+#include "cg_solver_jacobi.hpp"
 #include "operations.hpp"
 #include "timer.hpp"
 
@@ -8,7 +8,8 @@
 #include <iostream>
 #include <iomanip>
 
-void cg_solver(stencil3d const* op, int n, double* x, double const* b,
+//preconditioned cg solver
+void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
         double tol, int maxIter,
         double* resNorm, int* numIter,
         int verbose)
@@ -17,13 +18,24 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
   {
     throw std::runtime_error("mismatch between stencil and vector dimension passed to cg_solver");
   }
-
   double *p = new double[n];
   double *q = new double[n];
   double *r = new double[n];
-
-  double alpha, beta, rho=1.0, rho_old=0.0;
-
+  double *z = new double[n];
+  //double *sigma = new double[n];
+  double alpha, beta, rho=1.0, rho_old=0.0, rho_r=1.0;
+  
+  stencil3d op2;
+  op2.nx = op->nx;
+  op2.ny = op->ny;
+  op2.nz = op->nz;
+  op2.value_c = 0.0;
+  op2.value_n = op->value_n;
+  op2.value_s = op->value_s;
+  op2.value_e = op->value_e;
+  op2.value_w = op->value_w;
+  op2.value_t = op->value_t;
+  op2.value_b = op->value_b;
   // r = op * x
   {
     Timer t("apply_stencil3d");
@@ -40,18 +52,23 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
       axpby(n, 1.0, b, -1.0, r);
   }
 
-  // p = q = 0
   {
       Timer t("init");
       t.m = 0.0; 
       t.b = 1.0 * sizeof(double) * n;
-      init(n,p,0.0);
+      init(n, p, 0.0);
   }
   {
       Timer t("init");
       t.m = 0.0; 
       t.b = 1.0 * sizeof(double) * n;
-      init(n,q,0.0);
+      init(n, q, 0.0);
+  }
+  {
+      Timer t("init");
+      t.m = 0.0; 
+      t.b = 1.0 * sizeof(double) * n;
+      init(n, z, 0.0);
   }
 
   // start CG iteration
@@ -59,29 +76,39 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
   while (true)
   {
     iter++;
-
-    // rho = <r, r>
+    //solve Az=r with jacobi iterations
+    apply_jacobi_iterations(&op2, r, z, op->value_c, 500);
+    // rho = <r, z>
     {
         Timer t("dot");
         t.m = 2.0 * n;
         t.b = 2.0 * sizeof(double) * n;
-        rho = dot(n,r,r);
+        rho = dot(n,r,z);
     }
+    
+    // rho_r = <r, r>
+    {
+        Timer t("dot");
+        t.m = 2.0 * n;
+        t.b = 2.0 * sizeof(double) * n;
+        rho_r = dot(n,r,r);
+    }
+    
     if (verbose)
     {
       double sum = 0.0;
       for (int i = 0; i<n; i++) sum += std::pow(x[i],2);
       sum = std::sqrt(sum);
-      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho 
+      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho_r
                 << "\t" << std::setw(8) << std::setprecision(4) << sum << std::endl;
     }
 
     // check for convergence or failure
-    if ((std::sqrt(rho) < tol) || (iter > maxIter))
+    if ((std::sqrt(rho_r) < tol) || (iter > maxIter))
     {
       break;
     }
-
+    
     if (rho_old==0.0)
     {
       alpha = 0.0;
@@ -90,12 +117,13 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
     {
       alpha = rho / rho_old;
     }
-    // p = r + alpha * p
+    
+    // p = z + alpha * p
     {
-        Timer t("axpby");
-        t.m = 3.0 * n;
-        t.b = 3.0 * sizeof(double) * n ;
-        axpby(n, 1.0, r, alpha, p);
+      Timer t("axpby");
+      t.m = 3.0 * n;
+      t.b = 3.0 * sizeof(double) * n ;
+      axpby(n, 1.0, z, alpha, p);
     }
 
     // q = op * p
@@ -105,7 +133,7 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
         t.b = 1.0 * sizeof(op) + 2.0 * n * sizeof(double);
         apply_stencil3d(op, p, q);
     }
-    
+
     // beta = <p,q>
     {
         Timer t("dot");
@@ -117,30 +145,33 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
     alpha = rho / beta;
 
     // x = x + alpha * p
-     {
-        Timer t("axpby");
-        t.m = 3.0 * n;
-        t.b = 3.0 * sizeof(double) * n ;
-        axpby(n,alpha,p,1.0,x);
-     }
-
+    {
+      Timer t("axpby");
+      t.m = 3.0 * n;
+      t.b = 3.0 * sizeof(double) * n ;
+      axpby(n,alpha,p,1.0,x);
+    }
+    
     // r = r - alpha * q
-     {
-        Timer t("axpby");
-        t.m = 3.0 * n;
-        t.b = 3.0 * sizeof(double) * n ;
-        axpby(n,-alpha, q, 1.0, r);
-     }
+    {
+      Timer t("axpby");
+      t.m = 3.0 * n;
+      t.b = 3.0 * sizeof(double) * n ;
+      axpby(n,-alpha, q, 1.0, r);
+    }
+
     std::swap(rho_old, rho);
   }// end of while-loop
-  
+
   // clean up
   delete [] p;
   delete [] q;
   delete [] r;
-
+  delete [] z;
+  //delete [] sigma;
+  
   // return number of iterations and achieved residual
-  *resNorm = rho;
+  *resNorm = rho_r;
   *numIter = iter;
   return;
 }
