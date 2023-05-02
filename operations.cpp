@@ -300,7 +300,7 @@ void apply_stencil3d(stencil3d const* S,
   return;
 }
 
-void apply_jacobi(stencil3d const* S,
+void apply_jacobi_pre(stencil3d const* S,
         double const* u, double* v)
 {
   int n = S->nx * S->ny * S->nz;
@@ -310,4 +310,33 @@ void apply_jacobi(stencil3d const* S,
       v[i] = u[i] / S->value_c;
   }
   return;
+}
+
+void copy(int n, double const* u, double* v)
+{
+    #pragma omp parallel for schedule(static)
+    for (int i=0; i<n; i++)
+    {
+        v[i] = u[i];   
+    }
+}
+
+void apply_jacobi_iterations(stencil3d const* S,
+        double const* u, double* v, double c, int iter_max)
+{
+    int n = S->nx * S->ny * S->nz;
+    double *sigma = new double[n];
+    for (int k=0; k<iter_max; k++)
+    {
+        //sigma(i) = sum_nodiag A(i,j,k)*v(loc(i,j,k))
+        apply_stencil3d(S,v,sigma);
+        
+        //sigma =(u - sigma)/c, c = a_ii
+        #pragma omp parallel for schedule(static)
+        for (int i=0; i<n; i++)
+        {
+            v[i] = (u[i] - sigma[i])/c;   
+        }
+    }
+    delete [] sigma;
 }

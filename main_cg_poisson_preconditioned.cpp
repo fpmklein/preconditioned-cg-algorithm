@@ -104,7 +104,7 @@ int main(int argc, char* argv[])
     // solve the linear system of equations using CG
     int numIter, maxIter=600;
     double resNorm, tol=std::sqrt(std::numeric_limits<double>::epsilon());
-
+    std::cout<<"tol = "<<tol<<std::endl;
     try
     {
       {

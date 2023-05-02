@@ -21,10 +21,21 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
   double *p = new double[n];
   double *q = new double[n];
   double *r = new double[n];
-  double *sigma = new double[n];
-  double *x_iter = new double[n];
-  double alpha, beta, rho=1.0, rho_old=0.0;
-
+  double *z = new double[n];
+  //double *sigma = new double[n];
+  double alpha, beta, rho=1.0, rho_old=0.0, rho_r=1.0;
+  
+  stencil3d op2;
+  op2.nx = op->nx;
+  op2.ny = op->ny;
+  op2.nz = op->nz;
+  op2.value_c = 0.0;
+  op2.value_n = op->value_n;
+  op2.value_s = op->value_s;
+  op2.value_e = op->value_e;
+  op2.value_w = op->value_w;
+  op2.value_t = op->value_t;
+  op2.value_b = op->value_b;
   // r = op * x
   {
     Timer t("apply_stencil3d");
@@ -53,30 +64,47 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
       t.b = 1.0 * sizeof(double) * n;
       init(n, q, 0.0);
   }
+  {
+      Timer t("init");
+      t.m = 0.0; 
+      t.b = 1.0 * sizeof(double) * n;
+      init(n, z, 0.0);
+  }
 
   // start CG iteration
   int iter = -1;
   while (true)
   {
     iter++;
-    // rho = <r, r>
+    //solve Az=r with jacobi iterations
+    apply_jacobi_iterations(&op2, r, z, op->value_c, 500);
+    // rho = <r, z>
     {
         Timer t("dot");
         t.m = 2.0 * n;
         t.b = 2.0 * sizeof(double) * n;
-        rho = dot(n,r,r);
+        rho = dot(n,r,z);
     }
+    
+    // rho_r = <r, r>
+    {
+        Timer t("dot");
+        t.m = 2.0 * n;
+        t.b = 2.0 * sizeof(double) * n;
+        rho_r = dot(n,r,r);
+    }
+    
     if (verbose)
     {
       double sum = 0.0;
       for (int i = 0; i<n; i++) sum += std::pow(x[i],2);
       sum = std::sqrt(sum);
-      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho
+      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho_r
                 << "\t" << std::setw(8) << std::setprecision(4) << sum << std::endl;
     }
 
     // check for convergence or failure
-    if ((std::sqrt(rho) < tol) || (iter > maxIter))
+    if ((std::sqrt(rho_r) < tol) || (iter > maxIter))
     {
       break;
     }
@@ -89,12 +117,13 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
     {
       alpha = rho / rho_old;
     }
-    // p = r + alpha * p
+    
+    // p = z + alpha * p
     {
       Timer t("axpby");
       t.m = 3.0 * n;
       t.b = 3.0 * sizeof(double) * n ;
-      axpby(n, 1.0, r, alpha, p);
+      axpby(n, 1.0, z, alpha, p);
     }
 
     // q = op * p
@@ -123,32 +152,6 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
       axpby(n,alpha,p,1.0,x);
     }
     
-    stencil3d op2;
-    op2.nx = op->nx;
-    op2.ny = op->ny;
-    op2.nz = op->nz;
-    op2.value_c = 0.0;
-    op2.value_n = op->value_n;
-    op2.value_s = op->value_s;
-    op2.value_e = op->value_e;
-    op2.value_w = op->value_w;
-    op2.value_t = op->value_t;
-    op2.value_b = op->value_b;
-    
-    for (int i=0; i<n; i++)
-        x_iter[i] = x[i];
-    for (int k=0; k<50; k++)
-    {
-        //sigma(i) = sum_i!=j A(i,j)*u(j)
-        apply_stencil3d(&op2,x_iter,sigma);
-        //sigma = 1/c(b-sigma)
-        axpby(n,1.0/(op->value_c), b, -1.0/(op->value_c), sigma);
-        for (int i=0; i<n; i++)
-            x_iter[i] = sigma[i];
-    }
-    for (int i=0; i<n; i++)
-        x[i] = x_iter[i];
-    
     // r = r - alpha * q
     {
       Timer t("axpby");
@@ -164,11 +167,11 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
   delete [] p;
   delete [] q;
   delete [] r;
-  delete [] sigma;
-  delete [] x_iter;
+  delete [] z;
+  //delete [] sigma;
   
   // return number of iterations and achieved residual
-  *resNorm = rho;
+  *resNorm = rho_r;
   *numIter = iter;
   return;
 }

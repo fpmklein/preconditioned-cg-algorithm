@@ -84,7 +84,7 @@ void precond_cg_solver(stencil3d const* op, int n, double* x, double const* b,
         Timer t("apply_jacobi");
         t.m = 1.0 * n * sizeof(double);
         t.b = 3.0 * sizeof(int) + 1.0 * sizeof(double) + 1.0 * n * sizeof(double);
-        apply_jacobi(op,r,z);
+        apply_jacobi_pre(op,r,z);
     }
     
     // rho = <r, z>
