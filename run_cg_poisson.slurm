@@ -11,5 +11,5 @@ n=32
 export OMP_NUM_THREADS=48
 export  OMP_PROC_BIND=close
 export  OMP_PLACES=cores
-srun ./main_cg_poisson_preconditioned.x $n >> results_cg_poisson_pre$n$OMP_NUM_THREADS.out
 srun ./main_cg_poisson_jacobi.x $n >> results_cg_poisson_jacobi$n$OMP_NUM_THREADS.out
+srun ./main_cg_poisson.x $n >> results_cg_poisson$n$OMP_NUM_THREADS.out
