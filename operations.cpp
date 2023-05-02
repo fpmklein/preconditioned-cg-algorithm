@@ -322,21 +322,92 @@ void copy(int n, double const* u, double* v)
 }
 
 void apply_jacobi_iterations(stencil3d const* S,
-        double const* u, double* v, double c, int iter_max)
+        double const* u, double* v, int iter_max)
 {
+    
+    stencil3d op2;
+    op2.nx = S->nx;
+    op2.ny = S->ny;
+    op2.nz = S->nz;
+    op2.value_c = 0.0;
+    op2.value_n = S->value_n;
+    op2.value_s = S->value_s;
+    op2.value_e = S->value_e;
+    op2.value_w = S->value_w;
+    op2.value_t = S->value_t;
+    op2.value_b = S->value_b;
+    
     int n = S->nx * S->ny * S->nz;
     double *sigma = new double[n];
     for (int k=0; k<iter_max; k++)
     {
         //sigma(i) = sum_nodiag A(i,j,k)*v(loc(i,j,k))
-        apply_stencil3d(S,v,sigma);
+        apply_stencil3d(&op2,v,sigma);
         
         //sigma =(u - sigma)/c, c = a_ii
         #pragma omp parallel for schedule(static)
         for (int i=0; i<n; i++)
         {
-            v[i] = (u[i] - sigma[i])/c;   
+            v[i] = (u[i] - sigma[i])/S->value_c;   
         }
     }
     delete [] sigma;
+    
+}
+
+void apply_gauss_seidel(stencil3d const* S, 
+double const* u, double* v, int iter_max)
+{
+
+int n = S->nx * S->ny * S->nz;
+double *sigma_L = new double[n];
+double *sigma_U = new double[n];
+double *phi = new double[n];
+
+    stencil3d L;
+    L.nx = S->nx;
+    L.ny = S->ny;
+    L.nz = S->nz;
+    L.value_c = 0.0;
+    L.value_n = 0.0;
+    L.value_s = S->value_s;
+    L.value_e = 0.0;
+    L.value_w = S->value_w;
+    L.value_t = 0.0;
+    L.value_b = S->value_b;
+    
+    stencil3d U;
+    U.nx = S->nx;
+    U.ny = S->ny;
+    U.nz = S->nz;
+    U.value_c = 0.0;
+    U.value_n = S->value_n;
+    U.value_s = 0.0;
+    U.value_e = S->value_e;
+    U.value_w = 0.0;
+    U.value_t = S->value_t;
+    U.value_b = 0.0;
+
+init(n, phi, 0.0);
+
+for (int k=0; k<iter_max; k++)
+{
+
+    apply_stencil3d(&U,phi,sigma_U);
+    
+    apply_stencil3d(&L,v,sigma_L);
+    
+    #pragma omp parallel for schedule(static)
+    for (int i=0; i<n; i++)
+        {
+            phi[i] = (u[i] - sigma_L[i] - sigma_U[i])/S->value_c;   
+        }
+        
+    copy(n,phi,v);
+}
+
+delete [] sigma_L;
+delete [] sigma_U;
+delete [] phi;
+    
 }

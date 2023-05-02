@@ -25,17 +25,7 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
   //double *sigma = new double[n];
   double alpha, beta, rho=1.0, rho_old=0.0, rho_r=1.0;
   
-  stencil3d op2;
-  op2.nx = op->nx;
-  op2.ny = op->ny;
-  op2.nz = op->nz;
-  op2.value_c = 0.0;
-  op2.value_n = op->value_n;
-  op2.value_s = op->value_s;
-  op2.value_e = op->value_e;
-  op2.value_w = op->value_w;
-  op2.value_t = op->value_t;
-  op2.value_b = op->value_b;
+
   // r = op * x
   {
     Timer t("apply_stencil3d");
@@ -76,15 +66,6 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
   while (true)
   {
     iter++;
-    //solve Az=r with jacobi iterations
-    apply_jacobi_iterations(&op2, r, z, op->value_c, 500);
-    // rho = <r, z>
-    {
-        Timer t("dot");
-        t.m = 2.0 * n;
-        t.b = 2.0 * sizeof(double) * n;
-        rho = dot(n,r,z);
-    }
     
     // rho_r = <r, r>
     {
@@ -107,6 +88,24 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
     if ((std::sqrt(rho_r) < tol) || (iter > maxIter))
     {
       break;
+    }
+    
+    //solve Az=r with jacobi iterations
+    
+    {
+        Timer t("apply_preconditioning");
+        t.m = 0.0;
+        t.b = 0.0;
+        apply_gauss_seidel(op,r,z,5000);
+        //apply_jacobi_iterations(op, r, z, 500);
+    }
+    
+    // rho = <r, z>
+    {
+        Timer t("dot");
+        t.m = 2.0 * n;
+        t.b = 2.0 * sizeof(double) * n;
+        rho = dot(n,r,z);
     }
     
     if (rho_old==0.0)
