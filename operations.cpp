@@ -344,6 +344,7 @@ void apply_jacobi_iterations(stencil3d const* S,
         //sigma(i) = sum_nodiag A(i,j,k)*v(loc(i,j,k))
         apply_stencil3d(&op2,v,sigma);
         
+        //u = b - Ax
         //sigma =(u - sigma)/c, c = a_ii
         #pragma omp parallel for schedule(static)
         for (int i=0; i<n; i++)
@@ -399,9 +400,9 @@ for (int k=0; k<iter_max; k++)
     
     #pragma omp parallel for schedule(static)
     for (int i=0; i<n; i++)
-        {
-            phi[i] = (u[i] - sigma_L[i] - sigma_U[i])/S->value_c;   
-        }
+    {
+        phi[i] = (u[i] - sigma_L[i] - sigma_U[i])/S->value_c;   
+    }
         
     copy(n,phi,v);
 }
