@@ -80,8 +80,10 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
       double sum = 0.0;
       for (int i = 0; i<n; i++) sum += std::pow(x[i],2);
       sum = std::sqrt(sum);
-      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho_r
+      std::cout << sum << std::endl;
+      /*std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho_r
                 << "\t" << std::setw(8) << std::setprecision(4) << sum << std::endl;
+      */
     }
 
     // check for convergence or failure
@@ -96,8 +98,8 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
         Timer t("apply_preconditioning");
         t.m = 0.0;
         t.b = 0.0;
-        apply_gauss_seidel(op,r,z,5000);
-        //apply_jacobi_iterations(op, r, z, 500);
+        //apply_gauss_seidel(op,r,z,5000);
+        apply_jacobi_iterations(op, r, z, 500);
     }
     
     // rho = <r, z>
