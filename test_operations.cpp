@@ -4,6 +4,7 @@
 
 #include <iostream>
 
+#include <cmath>
 // note: you may add any number of tests to verify
 // your code behaves correctly, but do not change
 // the existing tests.
@@ -179,3 +180,46 @@ TEST(operations,stencil3d_positive_definite)
   delete [] A;
 }
 
+TEST(operations,preconditioner)
+{
+    const int nx=3, ny=3, nz=3;
+    const int n = nx*ny*nz;
+    double *b = new double[n];
+    double *x = new double[n];
+    double *y = new double[n];
+    double sum;
+    
+    stencil3d S;
+
+    S.nx=nx; S.ny=ny; S.nz=nz;
+    S.value_c = 6.0;
+    S.value_n = -1.0;
+    S.value_e = -1.0;
+    S.value_s = -1.0;
+    S.value_w = -1.0;
+    S.value_b = -1.0;
+    S.value_t = -1.0;
+    
+    init(n,x,0.0);
+    for (int i = 0; i<n; i++) y[i] = 0.5;
+    
+    apply_stencil3d(&S, y, b);
+    //sum=0.0;
+    //for (int i = 0; i<n; i++) std::cout<<"b_i = "<<b[i]<<std::endl;
+    
+    sum=0.0;
+    for (int i = 0; i<n; i++) sum += std::pow(y[i],2);
+    sum = std::sqrt(sum);
+    std::cout<<"||y||_2 = "<<sum<<std::endl;
+    
+    apply_jacobi_iterations(&S, b, x, 100);
+    
+    sum=0.0;
+    for (int i = 0; i<n; i++) sum += std::pow(x[i],2);
+    sum = std::sqrt(sum);
+    std::cout<<"||x||_2 = "<<sum<<std::endl;
+    
+    delete [] b;
+    delete [] x;
+    delete [] y;
+}

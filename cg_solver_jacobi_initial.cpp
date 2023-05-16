@@ -43,7 +43,7 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
   }
 
   
-  apply_jacobi_iterations(op, r, z, 500);
+  identity(op, r, z);
   
   copy(n,z,p);
   
@@ -96,7 +96,7 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
         t.m = 0.0;
         t.b = 0.0;
         //apply_gauss_seidel(op,r,z,500);
-        apply_jacobi_iterations(op, r, z, 500);
+        identity(op, r, z);
     }
     
     // rho = <r, z>

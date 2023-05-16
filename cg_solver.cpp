@@ -22,8 +22,11 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
   double *q = new double[n];
   double *r = new double[n];
 
-  double alpha, beta, rho=1.0, rho_old=0.0;
-
+  double alpha;
+  double beta;
+  double rho=1.0; 
+  double rho_old=0.0;
+  double rho_q;
   // r = op * x
   {
     Timer t("apply_stencil3d");
@@ -72,10 +75,14 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
       double sum = 0.0;
       for (int i = 0; i<n; i++) sum += std::pow(x[i],2);
       sum = std::sqrt(sum);
-      std::cout << sum << std::endl;
-      /*std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho_r
+      //std::cout << sum << std::endl;
+      //std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho << "\t" << std::setw(8) << std::setprecision(4) << sum << std::endl;
+      apply_stencil3d(op, x, q);
+      axpby(n, 1.0, b, -1.0, q);
+      rho_q = dot(n,q,q);
+      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << std::sqrt(rho)
+                << "\t" << std::setw(8) << std::setprecision(4) << std::sqrt(rho_q)
                 << "\t" << std::setw(8) << std::setprecision(4) << sum << std::endl;
-      */
     }
 
     // check for convergence or failure
