@@ -1,4 +1,4 @@
-#include "cg_solver_jacobi.hpp"
+#include "cg_solver.hpp"
 #include "operations.hpp"
 #include "timer.hpp"
 
@@ -9,7 +9,7 @@
 #include <iomanip>
 
 //preconditioned cg solver
-void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
+void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_cg_solver
         double tol, int maxIter,
         double* resNorm, int* numIter,
         int verbose)
@@ -22,9 +22,19 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
   double *q = new double[n];
   double *r = new double[n];
   double *z = new double[n];
-  //double *sigma = new double[n];
-  double alpha, beta, rho=1.0, rho_old=0.0, rho_r=1.0;
   
+  double alpha;
+  double beta;
+  double rho=1.0;
+  double rho_old=0.0; 
+  double rho_r=1.0;
+  
+  {
+      Timer t("init");
+      t.m = 0.0; 
+      t.b = 1.0 * sizeof(double) * n;
+      init(n, r, 0.0);
+  }
 
   // r = op * x
   {
@@ -80,10 +90,13 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
       double sum = 0.0;
       for (int i = 0; i<n; i++) sum += std::pow(x[i],2);
       sum = std::sqrt(sum);
-      std::cout << sum << std::endl;
-      /*std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho_r
+      //std::cout << sum << std::endl;
+      apply_stencil3d(op, x, q);
+      axpby(n, 1.0, b, -1.0, q);
+      rho = dot(n,q,q);
+      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << std::sqrt(rho_r)
+                << "\t" << std::setw(8) << std::setprecision(4) << std::sqrt(rho)
                 << "\t" << std::setw(8) << std::setprecision(4) << sum << std::endl;
-      */
     }
 
     // check for convergence or failure
@@ -109,7 +122,7 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
         t.b = 2.0 * sizeof(double) * n;
         rho = dot(n,r,z);
     }
-    
+      
     if (rho_old==0.0)
     {
       alpha = 0.0;
@@ -160,7 +173,6 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
       t.b = 3.0 * sizeof(double) * n ;
       axpby(n,-alpha, q, 1.0, r);
     }
-
     std::swap(rho_old, rho);
   }// end of while-loop
 
@@ -169,7 +181,6 @@ void jacobi_cg_solver(stencil3d const* op, int n, double* x, double const* b,
   delete [] q;
   delete [] r;
   delete [] z;
-  //delete [] sigma;
   
   // return number of iterations and achieved residual
   *resNorm = rho_r;
