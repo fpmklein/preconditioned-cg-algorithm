@@ -1,6 +1,6 @@
 CXX=g++
 
-CXX_FLAGS= -fno-elide-constructors -pedantic-errors -ansi -Wextra -Wall     -Winit-self -Wold-style-cast -Woverloaded-virtual -Wuninitialized -Wmissing-declarations    -Winit-self -fopenmp -std=c++17
+CXX_FLAGS= -O3 -march=native -funroll-loops -fopenmp -std=c++17
 
 DEFS=-DNDEBUG
 
