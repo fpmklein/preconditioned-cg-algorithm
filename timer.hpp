@@ -34,16 +34,18 @@
 class Timer
 {
 public:
-
-  Timer(std::string label);
+  Timer(std::string label, int nx, int ny, int nz);
   ~Timer();
   static void summarize(std::ostream& os=std::cout);
-  double m; //vector size
-  double b; //amount of bytes of a type
 
 private:
-
+  //double m; //vector size
+  //double b; //amount of bytes of a type
   std::string label_;
+  int nx_;
+  int ny_;
+  int nz_;
+  int n_;
   double t_start_;
   static std::map<std::string, double> flops_;
   static std::map<std::string, double> bytes_;

@@ -31,59 +31,9 @@ void axpby(int n, double a, double const* x, double b, double* y)
   }
   return;
 }
-void apply_stencil3d(stencil3d const* S,
-        double const* u, double* v)
-{
-  //v=S*u: v,u vectors and S a 7-point stencil
-  double sum;
-  #pragma omp parallel for reduction(+:sum) //collapse(3) <-for task 6 uncomment
-  for (int k = 0; k < S->nz; k++)
-  {
-    for (int j = 0; j < S->ny; j++)
-    {
-      for (int i = 0; i < S->nx; i++)
-      {
-        //grid i,j,k
-        sum = S->value_c * u[S->index_c(i,j,k)];
-        //grid i-1,j,k
-        if (i > 0)
-        {
-          sum += S->value_w * u[S->index_w(i,j,k)];
-        }
-        //grid i,j-1,k
-        if (j > 0)
-        {
-          sum += S->value_s * u[S->index_s(i,j,k)];
-        }
-        //grid i,j,k-1
-        if (k > 0)
-        {
-          sum += S->value_b * u[S->index_b(i,j,k)];
-        }
-        //grid i+1,j,k
-        if (i + 1 < S->nx)
-        {
-          sum += S->value_e * u[S->index_e(i,j,k)];
-        }
-        //grid i,j+1,k
-        if (j + 1 < S->ny)
-        {
-          sum += S->value_n * u[S->index_n(i,j,k)];
-        }
-        //grid i,j,k+1
-        if (k + 1 < S->nz)
-        {
-          sum += S->value_t * u[S->index_t(i,j,k)];
-        }
-        v[S->index_c(i,j,k)] = sum;
-      }
-    }
-  }
-  return;
-}
 
 //! apply a 7-point stencil to a vector
-/*void apply_stencil3d(stencil3d const* S,
+void apply_stencil3d(stencil3d const* S,
         double const* u, double* v)
 {
   //v=S*u: v,u vectors and S a 7-point stencil
@@ -185,7 +135,7 @@ void apply_stencil3d(stencil3d const* S,
   }
 
   //face: k=1,...,nz-2, j=1,...,ny-2, i=nx-1
-  #pragma omp parallel for schedule(static) collapse(2) //<-for task 6 hw1, uncomment
+  #pragma omp parallel for schedule(static) //collapse(2) //<-for task 6 hw1, uncomment
   for (int k = 1; k < S->nz - 1; k++)
   {
     for (int j = 1; j < S->ny - 1; j++)
@@ -348,7 +298,7 @@ void apply_stencil3d(stencil3d const* S,
                                                     + S->value_c * u[S->index_c(S->nx - 1, S->ny - 1, S->nz - 1)];
   
   return;
-}*/
+}
 
 void apply_jacobi_pre(stencil3d const* S,
         double const* u, double* v)
@@ -387,6 +337,7 @@ void identity(stencil3d const* S, double const* u, double* v)
     apply_stencil3d(&op2, u, v);
     return;
 }
+
 void apply_jacobi_iterations(stencil3d const* S,
         double const* u, double* v, int iter_max)
 {

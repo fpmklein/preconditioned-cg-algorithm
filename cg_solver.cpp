@@ -21,40 +21,39 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
   double *p = new double[n];
   double *q = new double[n];
   double *r = new double[n];
+  double *x_old = new double[n];
 
   double alpha;
   double beta;
   double rho=1.0; 
   double rho_old=0.0;
-  double rho_q;
+  double rho_x=1.0;
+  //double rho_q;
   // r = op * x
   {
-    Timer t("apply_stencil3d");
-    t.m = (6 + 7)*(op->nx - 2)*(op->ny - 2)*(op->nz - 2) + (5 + 6)*2*((op->nx - 2)*(op->ny - 2)+(op->nx - 2)*(op->nz - 2)+(op->nz - 2)*(op->ny - 2)) + (4 + 5)*4*((op->nx - 2) + (op->ny - 2) + (op->nz - 2)) + (3 + 4)*8;
-    t.b = 1.0 * sizeof(op) + 2.0 * n * sizeof(double);
+    Timer t("apply_stencil3d", op->nx, op->ny, op->nz);
     apply_stencil3d(op, x, r);
   }
 
   // r = b - r;
   {
-      Timer t("axpby");
-      t.m = 3.0 * n;
-      t.b = 3.0 * sizeof(double) * n ;
+      Timer t("axpby", op->nx, op->ny, op->nz);
       axpby(n, 1.0, b, -1.0, r);
   }
 
   // p = q = 0
   {
-      Timer t("init");
-      t.m = 0.0; 
-      t.b = 1.0 * sizeof(double) * n;
+      Timer t("init", op->nx, op->ny, op->nz);
       init(n,p,0.0);
   }
   {
-      Timer t("init");
-      t.m = 0.0; 
-      t.b = 1.0 * sizeof(double) * n;
+      Timer t("init", op->nx, op->ny, op->nz);
       init(n,q,0.0);
+  }
+  //x_old=0
+  {
+      Timer t("init", op->nx, op->ny, op->nz);
+      init(n, x_old, 0.0);
   }
 
   // start CG iteration
@@ -65,9 +64,7 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
 
     // rho = <r, r>
     {
-        Timer t("dot");
-        t.m = 2.0 * n;
-        t.b = 2.0 * sizeof(double) * n;
+        Timer t("dot", op->nx, op->ny, op->nz);
         rho = dot(n,r,r);
     }
     if (verbose)
@@ -75,18 +72,17 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
       double sum = 0.0;
       for (int i = 0; i<n; i++) sum += std::pow(x[i],2);
       sum = std::sqrt(sum);
-      //std::cout << sum << std::endl;
-      //std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << rho << "\t" << std::setw(8) << std::setprecision(4) << sum << std::endl;
-      apply_stencil3d(op, x, q);
+      //checking whether ||r||_2 ~= ||Ax-b||_2
+      /* apply_stencil3d(op, x, q);
       axpby(n, 1.0, b, -1.0, q);
-      rho_q = dot(n,q,q);
-      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << std::sqrt(rho)
-                << "\t" << std::setw(8) << std::setprecision(4) << std::sqrt(rho_q)
+      rho = dot(n,q,q);*/
+      
+      std::cout << std::setw(4) << iter << "\t" << std::setw(8) << std::setprecision(4) << std::sqrt(rho) 
                 << "\t" << std::setw(8) << std::setprecision(4) << sum << std::endl;
     }
 
     // check for convergence or failure
-    if ((std::sqrt(rho) < tol) || (iter > maxIter))
+    if ((std::sqrt(rho) < tol) || (iter > maxIter) || (std::sqrt(rho_x) < tol) )
     {
       break;
     }
@@ -101,43 +97,49 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
     }
     // p = r + alpha * p
     {
-        Timer t("axpby");
-        t.m = 3.0 * n;
-        t.b = 3.0 * sizeof(double) * n ;
+        Timer t("axpby", op->nx, op->ny, op->nz);
         axpby(n, 1.0, r, alpha, p);
     }
 
     // q = op * p
     {
-        Timer t("apply_stencil3d");
-        t.m = (6 + 7)*(op->nx - 2)*(op->ny - 2)*(op->nz - 2) + (5 + 6)*2*((op->nx - 2)*(op->ny - 2)+(op->nx - 2)*(op->nz - 2)+(op->nz - 2)*(op->ny - 2)) + (4 + 5)*4*((op->nx - 2) + (op->ny - 2) + (op->nz - 2)) + (3 + 4)*8;
-        t.b = 1.0 * sizeof(op) + 2.0 * n * sizeof(double);
+        Timer t("apply_stencil3d", op->nx, op->ny, op->nz);
         apply_stencil3d(op, p, q);
     }
     
     // beta = <p,q>
     {
-        Timer t("dot");
-        t.m = 2.0 * n;
-        t.b = 2.0 * sizeof(double) * n;
+        Timer t("dot", op->nx, op->ny, op->nz);
         beta = dot(n,p,q);
     }
 
     alpha = rho / beta;
 
+    //x_old = x
+    {
+        Timer t("copy", op->nx, op->ny, op->nz);
+        copy(n, x, x_old);
+    }
+    
     // x = x + alpha * p
      {
-        Timer t("axpby");
-        t.m = 3.0 * n;
-        t.b = 3.0 * sizeof(double) * n ;
+        Timer t("axpby", op->nx, op->ny, op->nz);
         axpby(n,alpha,p,1.0,x);
      }
-
+     
+    //for stopping criteria, ||x-x_old||_2
+    {
+        Timer t("axpby", op->nx, op->ny, op->nz);
+        axpby(n, 1.0, x, - 1.0, x_old);
+    }
+    {
+        Timer t("dot", op->nx, op->ny, op->nz);
+        rho_x = dot(n, x_old, x_old);
+    }
+    
     // r = r - alpha * q
      {
-        Timer t("axpby");
-        t.m = 3.0 * n;
-        t.b = 3.0 * sizeof(double) * n ;
+        Timer t("axpby", op->nx, op->ny, op->nz);
         axpby(n,-alpha, q, 1.0, r);
      }
     std::swap(rho_old, rho);
@@ -147,6 +149,7 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b,
   delete [] p;
   delete [] q;
   delete [] r;
+  delete [] x_old;
 
   // return number of iterations and achieved residual
   *resNorm = rho;
