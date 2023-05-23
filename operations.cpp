@@ -1,6 +1,9 @@
 #include "operations.hpp"
 #include <omp.h>
-
+#include <cmath>
+#include <stdexcept>
+#include <iostream>
+#include <iomanip>
 void init(int n, double* x, double value)
 {
   #pragma omp parallel for schedule(static)
@@ -28,6 +31,16 @@ void axpby(int n, double a, double const* x, double b, double* y)
   for (int i = 0; i<n; i++)
   {
     y[i] = a*x[i] + b*y[i];
+  }
+  return;
+}
+
+void axy(int n, double a, double const* x, double* y)
+{
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i<n; i++)
+  {
+    y[i] = a*x[i];
   }
   return;
 }
@@ -300,18 +313,6 @@ void apply_stencil3d(stencil3d const* S,
   return;
 }
 
-void apply_jacobi_pre(stencil3d const* S,
-        double const* u, double* v)
-{
-  int n = S->nx * S->ny * S->nz;
-  #pragma omp parallel for schedule(static)
-  for (int i = 0; i < n; i++)
-  {
-      v[i] = u[i] / S->value_c;
-  }
-  return;
-}
-
 void copy(int n, double const* u, double* v)
 {
     #pragma omp parallel for schedule(static)
@@ -321,7 +322,20 @@ void copy(int n, double const* u, double* v)
     }
 }
 
-void identity(stencil3d const* S, double const* u, double* v)
+void apply_jacobi_pre(stencil3d const* S,
+        double const* r, double* z)
+{
+  int n = S->nx * S->ny * S->nz;
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < n; i++)
+  {
+      z[i] = r[i] / S->value_c;
+  }
+  return;
+}
+
+
+void identity(stencil3d const* S, double const* r, double* z)
 {
     stencil3d op2;
     op2.nx = S->nx;
@@ -334,12 +348,12 @@ void identity(stencil3d const* S, double const* u, double* v)
     op2.value_w = 0.0;
     op2.value_t = 0.0;
     op2.value_b = 0.0;
-    apply_stencil3d(&op2, u, v);
+    apply_stencil3d(&op2, r, z);
     return;
 }
 
 void apply_jacobi_iterations(stencil3d const* S,
-        double const* u, double* v, int iter_max)
+        double const* r, double* z, int iter_max)
 {
     
     stencil3d op2;
@@ -358,15 +372,15 @@ void apply_jacobi_iterations(stencil3d const* S,
     double *sigma = new double[n];
     for (int k=0; k<iter_max; k++)
     {
-        //sigma(i) = sum_nodiag A(i,j,k)*v(loc(i,j,k))
-        apply_stencil3d(&op2,v,sigma);
+        //sigma(i) = sum_nodiag A(i,j,k)*z(loc(i,j,k))
+        apply_stencil3d(&op2,z,sigma);
         
-        //u = b - Ax
-        //sigma =(u - sigma)/c, c = a_ii
+        //r = b - Ax
+        //sigma =(r - sigma)/c, c = a_ii
         #pragma omp parallel for schedule(static)
         for (int i=0; i<n; i++)
         {
-            v[i] = (u[i] - sigma[i])/S->value_c;   
+            z[i] = (r[i] - sigma[i])/S->value_c;   
         }
     }
     delete [] sigma;
@@ -374,7 +388,7 @@ void apply_jacobi_iterations(stencil3d const* S,
 }
 
 void apply_gauss_seidel(stencil3d const* S, 
-double const* u, double* v, int iter_max)
+double const* r, double* z, int iter_max)
 {
 
 int n = S->nx * S->ny * S->nz;
@@ -413,19 +427,165 @@ for (int k=0; k<iter_max; k++)
 
     apply_stencil3d(&U,phi,sigma_U);
     
-    apply_stencil3d(&L,v,sigma_L);
+    apply_stencil3d(&L,z,sigma_L);
     
     #pragma omp parallel for schedule(static)
     for (int i=0; i<n; i++)
     {
-        phi[i] = (u[i] - sigma_L[i] - sigma_U[i])/S->value_c;   
+        phi[i] = (r[i] - sigma_L[i] - sigma_U[i])/S->value_c;   
     }
         
-    copy(n,phi,v);
+    copy(n,phi,z);
 }
 
 delete [] sigma_L;
 delete [] sigma_U;
 delete [] phi;
 return;
+}
+
+std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max)
+{
+    int n = S->nx * S->ny * S->nz;
+    double *q = new double[n];
+    double *p = new double[n];
+    double kappa;
+    double tol = std::sqrt(std::numeric_limits<double>::epsilon());
+    double alpha = 0.0;
+    double beta = 0.0;
+    double alpha_old = -100.0;
+    double beta_old = -100.0;
+    //initialize q such that ||q||_2 = 1
+    init(n, q, 1.0/std::sqrt(n));
+    
+    //p = S*q
+    apply_stencil3d(S, q, p);
+    
+    //matrix S is SPD-> positive eigenvalues
+    //power method computes largest eigenvalue in absolute value, note //max |eigenvalue| = max eigenvalue
+    //since matrix is SPD, shift B=A-lambda_max I computes smallest eigenvalue in absolute value, note //min |eigenvalue| = min eigenvalue
+    
+    //power method to find largest eigenvalue
+    double iter; 
+    iter = -1;
+    while (abs(beta - beta_old) > tol || iter < iter_max) 
+    {
+        iter++;
+        //kappa = ||p||_2
+        kappa = dot(n,p,p);
+        kappa = std::sqrt(kappa);
+        //q = p / kappa
+        axy(n, 1.0/kappa, p, q);
+        //beta_old = beta
+        beta_old = beta;
+        //lambda_max = <p, q>
+        beta = dot(n,p,q);
+        //p = S*q
+        apply_stencil3d(S, q, p);
+    }
+    
+    //shifted power method to find smallest eigenvalue
+    //op = S - lambda_max I
+    stencil3d op;
+    op.nx = S->nx;
+    op.ny = S->ny;
+    op.nz = S->nz;
+    op.value_c = S->value_c;// - beta;
+    op.value_n = S->value_n;
+    op.value_s = S->value_s;
+    op.value_e = S->value_e;
+    op.value_w = S->value_w;
+    op.value_t = S->value_t;
+    op.value_b = S->value_b;
+    
+    //initialize q such that ||q||_2 = 1
+    init(n,q, 1.0/std::sqrt(n));
+    
+    //p = op*q
+    apply_stencil3d(&op, q, p);
+    iter = -1;
+    while (abs(alpha - alpha_old) > tol || iter < iter_max) 
+    {
+        iter++;
+        //kappa = ||p||_2
+        kappa = dot(n,p,p);
+        kappa = std::sqrt(kappa);
+        //q = p / kappa
+        axy(n, 1.0/kappa, p, q);
+        //alpha_old = alpha
+        alpha_old = alpha;
+        //lambda_max = <p, q>
+        alpha = dot(n,p,q);
+        //p = op*q
+        apply_stencil3d(&op, q, p);
+    }
+    delete [] p;
+    delete [] q;
+    //return alpha := lambda_min(S), beta := lambda_max(S)
+    return {alpha, beta};
+
+}
+
+void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, double const alpha, double const beta)
+{
+    int n = S->nx * S->ny * S->nz;
+    double *z_old = new double[n];
+    double *y = new double[n];
+    
+    //auto [alpha, beta] = extremal_eigenvalues(S, n);
+    double delta = 0.5*(beta - alpha);
+    double theta = 0.5*(beta + alpha);
+    double sigma = theta / delta;
+    
+    //kappa_0 = 1/sigma
+    double kappa_old = 1.0 / sigma;
+    //kappa_1 = 1/(2*sigma - kappa_0)
+    double kappa = 1.0 / (2.0*sigma - kappa_old);
+    
+    //z_{0} = 1/theta * r
+    axy(n,  1.0/theta, r, z_old);
+    
+    //z = Ar
+    apply_stencil3d(S, r, z);
+     
+    double c = 2.0 * kappa / delta;
+    //z = c * (2r - 1/theta * z)
+    axpby(n,  2.0*c, r, -c/theta, z);
+    
+    if (iter_max == 1)
+    {
+        copy(n, z_old, z);
+        //return z = z_0
+    }
+    //if iter_max == 2, return z = z_1
+    else if (iter_max > 2)
+    {
+        for (int k=1; k<iter_max; k++)
+        {
+            //y_{k} = A z_{k}
+            apply_stencil3d(S,z,y);
+            //y_{k} = 2/delta * (r-y_{k})
+            axpby(n, 2.0/delta, r, - 2.0/delta, y);
+            
+            //kappa_{k} = \kappa_{k-1}
+            kappa_old = kappa;
+            
+            //kappa_{k+1} = 1/(2*sigma 0 kappa_{k})
+            kappa = 1.0 / (2.0*sigma - kappa_old);
+            
+            //y_{k} = kappa_{k} * z_{k-1} + y_{k}
+            axpby(n, -kappa_old, z_old, 1.0, y);
+            
+            //z_old = z_{k-1} for new iteration k=k+1
+            copy(n, z, z_old);
+            
+            //z_{k+1} = kappa_{k+1}(2*sigma*z_{k}+ y_{k})
+            axpby(n, kappa*2.0*sigma, z, kappa, y);
+        }
+        //return z_{k+1}
+    }
+    
+    delete [] z_old;
+    delete [] y;
+    return;
 }
