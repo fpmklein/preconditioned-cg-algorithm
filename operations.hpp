@@ -16,6 +16,8 @@ double dot(int n, double const* x, double const* y);
 // vector update: compute y[i] = a*x[i] + b*y[i] for 0<=i<n
 void axpby(int n, double a, double const* x, double b, double* y);
 
+// vector update: compute y[i] = a*x[i] for 0<=i<n
+void axy(int n, double a, double const* x, double* y);
 //////////////////////////////////
 // Linear operator application  //
 //////////////////////////////////
@@ -79,16 +81,23 @@ typedef struct stencil3d
 void apply_stencil3d(stencil3d const* op,
         double const* u, double* v);
         
+void copy(int n, double const* u, double* v);
+        
 void identity(stencil3d const* S, double const* u, double* v);
 
-//v=s*u, where s a scalar and u,v vectors
+//v=s*u, where s a scalar and r,z vectors
 void apply_jacobi_pre(stencil3d const* S,
-        double const* u, double* v);
-        
-void copy(int n, double const* u, double* v);
+        double const* r, double* z);
 
 void apply_jacobi_iterations(stencil3d const* S,
-        double const* u, double* v, int iter_max);
+        double const* r, double* z, int iter_max);
 
 void apply_gauss_seidel(stencil3d const* S,
-        double const* u, double* v, int iter_max);
+        double const* r, double* z, int iter_max);
+
+std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max);
+
+void apply_cheb(stencil3d const* S, 
+                double const* r, double* z, 
+                int iter_max, 
+                double const alpha, double const beta);
