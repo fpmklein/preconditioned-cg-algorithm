@@ -446,9 +446,10 @@ delete [] phi;
 return;
 }
 
+/*
 std::pair<double,double> explicit_eigenvalues(stencil3d const* S)
 {
-    
+
 // this only holds for the 3D Poisson
     
     int N_x = S->nx;
@@ -486,6 +487,7 @@ std::pair<double,double> explicit_eigenvalues(stencil3d const* S)
     
     return{alpha,beta};
 }
+*/
 
 std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max)
 {
