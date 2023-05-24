@@ -1,0 +1,3 @@
+slurmstepd: error: execve(): /home/abudko/preconditioned-cg-algorithm/./main_cg_poisson_cheb.x: No such file or directory
+srun: error: cmp035: task 0: Exited with exit code 2
+srun: launch/slurm: _step_signal: Terminating StepId=2342642.0

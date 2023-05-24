@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
+
 void init(int n, double* x, double value)
 {
   #pragma omp parallel for schedule(static)
@@ -442,6 +444,47 @@ delete [] sigma_L;
 delete [] sigma_U;
 delete [] phi;
 return;
+}
+
+std::pair<double,double> explicit_eigenvalues(stencil3d const* S)
+{
+    
+// this only holds for the 3D Poisson
+    
+    int N_x = S->nx;
+    int N_y = S->ny;
+    int N_z = S->nz;
+    int n = S->nx * S->ny * S->nz;
+    
+    double dx=1.0/(N_x-1), dy=1.0/(N_y-1), dz=1.0/(N_z-1);
+    
+    double *eigenval = new double[n];
+    
+    #pragma omp parallel 
+    #pragma omp for ordered
+    for (int k = 1; k < S->nz - 1; k++)
+    {
+        for (int j = 1; j < S->ny - 1; j++)
+        {
+            for (int i = 1; i < S->nx - 1; i++)
+            {
+                #pragma omp ordered
+                eigenval[S->index_c(i,j,k)] = 4*(sin(M_PI*i/(2*N_x))*sin(M_PI*i/(2*N_x)) + sin(M_PI*j/(2*N_y))*sin(M_PI*j/(2*N_y)) + sin(M_PI*k/(2*N_z))*sin(M_PI*k/(2*N_z)))/(dx*dx);
+            }
+        }
+    }
+    
+    // Find the largest element
+    double* beta = std::max_element(eigenval, eigenval + n);
+    std::cout << "largest eigenvalue: " << *beta << std::endl;
+
+    // Find the smallest element
+    double* alpha = std::min_element(eigenval, eigenval + n);
+    std::cout << "smallest eigenvalue: " << *alpha << std::endl;
+
+    delete[] eigenval;
+    
+    return{alpha,beta};
 }
 
 std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max)

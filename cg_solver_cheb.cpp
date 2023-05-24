@@ -68,7 +68,8 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_
       init(n, x_old, 0.0);
   }
    
-  auto [aa, bb] = extremal_eigenvalues(op, n);
+  // auto [aa, bb] = extremal_eigenvalues(op, n);
+  auto [aa, bb] = explicit_eigenvalues(op);
   
   // start CG iteration
   int iter = -1;
