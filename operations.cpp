@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
+
 void init(int n, double* x, double value)
 {
   #pragma omp parallel for schedule(static)
@@ -443,6 +445,54 @@ delete [] sigma_U;
 delete [] phi;
 return;
 }
+
+
+std::pair<double,double> explicit_eigenvalues(stencil3d const* S)
+{
+
+// this only holds for the 3D Poisson
+    
+    int n = S->nx * S->ny * S->nz;
+    
+    double dx=1.0/(S->nx-1), dy=1.0/(S->ny-1), dz=1.0/(S->nz-1);
+    
+    double *eigenval = new double[n];
+    
+    #pragma omp parallel 
+    #pragma omp for ordered
+    for (int k = 1; k < S->nz - 1; k++)
+    {
+        for (int j = 1; j < S->ny - 1; j++)
+        {
+            for (int i = 1; i < S->nx - 1; i++)
+            {
+                #pragma omp ordered
+                eigenval[S->index_c(i,j,k)] = 4*(sin(M_PI*i/(2*S->nx))*sin(M_PI*i/(2*S->nx)) + sin(M_PI*j/(2*S->ny))*sin(M_PI*j/(2*S->ny)) + sin(M_PI*k/(2*S->nz))*sin(M_PI*k/(2*S->nz)))/(dx*dx);
+            }
+        }
+    }
+    
+    // Find the minimum and maximum eigenvalues in a simple way
+    double alpha = eigenval[0];
+    double beta = eigenval[0];
+
+    #pragma omp parallel for reduction(min:alpha) reduction(max:beta)
+    for (int l = 1; l < n; l++) {
+        if (eigenval[l] < alpha) {
+            alpha = eigenval[l];
+        }
+        if (eigenval[l] > beta) {
+            beta = eigenval[l];
+        }
+    }
+
+
+    delete[] eigenval;
+    
+    return {alpha, beta};
+}
+
+
 
 std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max)
 {

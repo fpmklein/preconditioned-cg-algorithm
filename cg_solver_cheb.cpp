@@ -68,7 +68,8 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_
       init(n, x_old, 0.0);
   }
    
-  auto [aa, bb] = extremal_eigenvalues(op, n);
+  //auto [aa, bb] = extremal_eigenvalues(op, n);
+  auto [aa, bb] = explicit_eigenvalues(op);
   
   // start CG iteration
   int iter = -1;
@@ -107,7 +108,7 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_
     
     {
         Timer t("apply_preconditioning", op->nx, op->ny, op->nz);
-        apply_cheb(op, r, z, 100, aa, bb);
+        apply_cheb(op, r, z, 500, aa, bb);
     }
     
     // rho = <r, z>
