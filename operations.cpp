@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <iostream>
 #include <iomanip>
+#include <algorithm>
+
 void init(int n, double* x, double value)
 {
   #pragma omp parallel for schedule(static)
@@ -444,6 +446,54 @@ delete [] phi;
 return;
 }
 
+
+std::pair<double,double> explicit_eigenvalues(stencil3d const* S)
+{
+
+// this only holds for the 3D Poisson
+    
+    int n = S->nx * S->ny * S->nz;
+    
+    double dx=1.0/(S->nx-1), dy=1.0/(S->ny-1), dz=1.0/(S->nz-1);
+    
+    double *eigenval = new double[n];
+    
+    #pragma omp parallel 
+    #pragma omp for ordered
+    for (int k = 1; k < S->nz - 1; k++)
+    {
+        for (int j = 1; j < S->ny - 1; j++)
+        {
+            for (int i = 1; i < S->nx - 1; i++)
+            {
+                #pragma omp ordered
+                eigenval[S->index_c(i,j,k)] = 4*(sin(M_PI*i/(2*S->nx))*sin(M_PI*i/(2*S->nx)) + sin(M_PI*j/(2*S->ny))*sin(M_PI*j/(2*S->ny)) + sin(M_PI*k/(2*S->nz))*sin(M_PI*k/(2*S->nz)))/(dx*dx);
+            }
+        }
+    }
+    
+    // Find the minimum and maximum eigenvalues in a simple way
+    double alpha = eigenval[0];
+    double beta = eigenval[0];
+
+    #pragma omp parallel for reduction(min:alpha) reduction(max:beta)
+    for (int l = 1; l < n; l++) {
+        if (eigenval[l] < alpha) {
+            alpha = eigenval[l];
+        }
+        if (eigenval[l] > beta) {
+            beta = eigenval[l];
+        }
+    }
+
+
+    delete[] eigenval;
+    
+    return {alpha, beta};
+}
+
+
+
 std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max)
 {
     int n = S->nx * S->ny * S->nz;
@@ -539,7 +589,7 @@ void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, do
     
     //kappa_0 = 1/sigma
     double kappa_old = 1.0 / sigma;
-    //kappa_1 = 1/(2*sigma - kappa_0)
+    //kappa_1
     double kappa = 1.0 / (2.0*sigma - kappa_old);
     
     //z_{0} = 1/theta * r
@@ -549,26 +599,29 @@ void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, do
     apply_stencil3d(S, r, z);
      
     double c = 2.0 * kappa / delta;
-    //z = c * (2r - 1/theta * z)
+    
+    //z_1 = c * (2r - 1/theta * z)
     axpby(n,  2.0*c, r, -c/theta, z);
     
+    //kappa_2
+    kappa_old = 1.0 / (2.0*sigma - kappa_old);
     if (iter_max == 1)
     {
         copy(n, z_old, z);
         //return z = z_0
     }
-    //if iter_max == 2, return z = z_1
-    else if (iter_max > 2)
+    else if (iter_max == 2)
     {
-        for (int k=1; k<iter_max; k++)
+        //return z = z_1
+    }
+    else
+    {
+        for (int k=2; k<iter_max; k++)
         {
             //y_{k} = A z_{k}
             apply_stencil3d(S,z,y);
             //y_{k} = 2/delta * (r-y_{k})
             axpby(n, 2.0/delta, r, - 2.0/delta, y);
-            
-            //kappa_{k} = \kappa_{k-1}
-            kappa_old = kappa;
             
             //kappa_{k+1} = 1/(2*sigma 0 kappa_{k})
             kappa = 1.0 / (2.0*sigma - kappa_old);
@@ -580,7 +633,10 @@ void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, do
             copy(n, z, z_old);
             
             //z_{k+1} = kappa_{k+1}(2*sigma*z_{k}+ y_{k})
-            axpby(n, kappa*2.0*sigma, z, kappa, y);
+            axpby(n, kappa, y, kappa*2.0*sigma, z);
+            
+            //kappa_{k} = \kappa_{k-1}
+            kappa_old = kappa;
         }
         //return z_{k+1}
     }

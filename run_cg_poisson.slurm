@@ -12,4 +12,4 @@ export OMP_NUM_THREADS=48
 export  OMP_PROC_BIND=close
 export  OMP_PLACES=cores
 
-srun ./main_cg_poisson_cheb.x $n >> a_cg_poisson_cheb_100it_$n$OMP_NUM_THREADS.out
+srun ./main_cg_poisson_cheb.x $n >> a_cg_poisson_cheb_2it_$n$OMP_NUM_THREADS.out
