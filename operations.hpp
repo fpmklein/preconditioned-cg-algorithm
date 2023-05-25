@@ -95,7 +95,7 @@ void apply_jacobi_iterations(stencil3d const* S,
 void apply_gauss_seidel(stencil3d const* S,
         double const* r, double* z, int iter_max);
 
-// std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max);
+std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max);
 
 std::pair<double,double> explicit_eigenvalues(stencil3d const* S);
 

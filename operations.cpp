@@ -446,18 +446,15 @@ delete [] phi;
 return;
 }
 
-/*
+
 std::pair<double,double> explicit_eigenvalues(stencil3d const* S)
 {
 
 // this only holds for the 3D Poisson
     
-    int N_x = S->nx;
-    int N_y = S->ny;
-    int N_z = S->nz;
     int n = S->nx * S->ny * S->nz;
     
-    double dx=1.0/(N_x-1), dy=1.0/(N_y-1), dz=1.0/(N_z-1);
+    double dx=1.0/(S->nx-1), dy=1.0/(S->ny-1), dz=1.0/(S->nz-1);
     
     double *eigenval = new double[n];
     
@@ -470,24 +467,32 @@ std::pair<double,double> explicit_eigenvalues(stencil3d const* S)
             for (int i = 1; i < S->nx - 1; i++)
             {
                 #pragma omp ordered
-                eigenval[S->index_c(i,j,k)] = 4*(sin(M_PI*i/(2*N_x))*sin(M_PI*i/(2*N_x)) + sin(M_PI*j/(2*N_y))*sin(M_PI*j/(2*N_y)) + sin(M_PI*k/(2*N_z))*sin(M_PI*k/(2*N_z)))/(dx*dx);
+                eigenval[S->index_c(i,j,k)] = 4*(sin(M_PI*i/(2*S->nx))*sin(M_PI*i/(2*S->nx)) + sin(M_PI*j/(2*S->ny))*sin(M_PI*j/(2*S->ny)) + sin(M_PI*k/(2*S->nz))*sin(M_PI*k/(2*S->nz)))/(dx*dx);
             }
         }
     }
     
-    // Find the largest element
-    double* beta = std::max_element(eigenval, eigenval + n);
-    std::cout << "largest eigenvalue: " << *beta << std::endl;
+    // Find the minimum and maximum eigenvalues in a simple way
+    double alpha = eigenval[0];
+    double beta = eigenval[0];
 
-    // Find the smallest element
-    double* alpha = std::min_element(eigenval, eigenval + n);
-    std::cout << "smallest eigenvalue: " << *alpha << std::endl;
+    #pragma omp parallel for reduction(min:alpha) reduction(max:beta)
+    for (int l = 1; l < n; l++) {
+        if (eigenval[l] < alpha) {
+            alpha = eigenval[l];
+        }
+        if (eigenval[l] > beta) {
+            beta = eigenval[l];
+        }
+    }
+
 
     delete[] eigenval;
     
-    return{alpha,beta};
+    return {alpha, beta};
 }
-*/
+
+
 
 std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max)
 {
