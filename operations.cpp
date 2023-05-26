@@ -489,7 +489,7 @@ std::pair<double,double> explicit_eigenvalues(stencil3d const* S)
 
     delete[] eigenval;
     
-    return {alpha, beta};
+    return {0.5*alpha, 1.5*beta};
 }
 
 
@@ -572,7 +572,7 @@ std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max)
     delete [] p;
     delete [] q;
     //return alpha := lambda_min(S), beta := lambda_max(S)
-    return {alpha, beta};
+    return {0.5*alpha, 1.5*beta};
 
 }
 
