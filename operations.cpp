@@ -372,8 +372,6 @@ void apply_jacobi_iterations(stencil3d const* S,
     
     int n = S->nx * S->ny * S->nz;
     double *sigma = new double[n];
-    //z_0 = 1/c * r   initial guess
-    axy(n, 1.0/(S->value_c), r, z);
     for (int k=0; k<iter_max; k++)
     {
         //sigma(i) = sum_nodiag A(i,j,k)*z(loc(i,j,k))
@@ -491,7 +489,7 @@ std::pair<double,double> explicit_eigenvalues(stencil3d const* S)
 
     delete[] eigenval;
     
-    return {0.5*alpha, 1.5*beta};
+    return {alpha, beta};
 }
 
 
@@ -574,7 +572,7 @@ std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max)
     delete [] p;
     delete [] q;
     //return alpha := lambda_min(S), beta := lambda_max(S)
-    return {0.5*alpha, 1.5*beta};
+    return {alpha, beta};
 
 }
 
@@ -591,7 +589,7 @@ void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, do
     
     //kappa_0 = 1/sigma
     double kappa_old = 1.0 / sigma;
-    //kappa_1
+    //kappa_1 = 1/(2*sigma - kappa_0)
     double kappa = 1.0 / (2.0*sigma - kappa_old);
     
     //z_{0} = 1/theta * r
@@ -601,29 +599,26 @@ void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, do
     apply_stencil3d(S, r, z);
      
     double c = 2.0 * kappa / delta;
-    
-    //z_1 = c * (2r - 1/theta * z)
+    //z = c * (2r - 1/theta * z)
     axpby(n,  2.0*c, r, -c/theta, z);
     
-    //kappa_2
-    kappa_old = 1.0 / (2.0*sigma - kappa_old);
     if (iter_max == 1)
     {
         copy(n, z_old, z);
         //return z = z_0
     }
-    else if (iter_max == 2)
+    //if iter_max == 2, return z = z_1
+    else if (iter_max > 2)
     {
-        //return z = z_1
-    }
-    else
-    {
-        for (int k=2; k<iter_max; k++)
+        for (int k=1; k<iter_max; k++)
         {
             //y_{k} = A z_{k}
             apply_stencil3d(S,z,y);
             //y_{k} = 2/delta * (r-y_{k})
             axpby(n, 2.0/delta, r, - 2.0/delta, y);
+            
+            //kappa_{k} = \kappa_{k-1}
+            kappa_old = kappa;
             
             //kappa_{k+1} = 1/(2*sigma 0 kappa_{k})
             kappa = 1.0 / (2.0*sigma - kappa_old);
@@ -635,10 +630,7 @@ void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, do
             copy(n, z, z_old);
             
             //z_{k+1} = kappa_{k+1}(2*sigma*z_{k}+ y_{k})
-            axpby(n, kappa, y, kappa*2.0*sigma, z);
-            
-            //kappa_{k} = \kappa_{k-1}
-            kappa_old = kappa;
+            axpby(n, kappa*2.0*sigma, z, kappa, y);
         }
         //return z_{k+1}
     }
