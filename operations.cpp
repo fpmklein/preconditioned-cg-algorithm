@@ -372,6 +372,8 @@ void apply_jacobi_iterations(stencil3d const* S,
     
     int n = S->nx * S->ny * S->nz;
     double *sigma = new double[n];
+    //z_0 = 1/c * r   initial guess
+    axy(n, 1.0/(S->value_c), r, z);
     for (int k=0; k<iter_max; k++)
     {
         //sigma(i) = sum_nodiag A(i,j,k)*z(loc(i,j,k))
