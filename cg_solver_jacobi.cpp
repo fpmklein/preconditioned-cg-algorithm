@@ -103,7 +103,7 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_
     
     {
         Timer t("apply_preconditioning", op->nx, op->ny, op->nz);
-        apply_jacobi_iterations(op, r, z, 10);
+        apply_jacobi_iterations(op, r, z, 2);
     }
     
     // rho = <r, z>
