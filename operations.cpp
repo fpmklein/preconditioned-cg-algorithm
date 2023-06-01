@@ -357,32 +357,22 @@ void identity(stencil3d const* S, double const* r, double* z)
 void apply_jacobi_iterations(stencil3d const* S,
         double const* r, double* z, int iter_max)
 {
-    
-    stencil3d op2;
-    op2.nx = S->nx;
-    op2.ny = S->ny;
-    op2.nz = S->nz;
-    op2.value_c = 0.0;
-    op2.value_n = S->value_n;
-    op2.value_s = S->value_s;
-    op2.value_e = S->value_e;
-    op2.value_w = S->value_w;
-    op2.value_t = S->value_t;
-    op2.value_b = S->value_b;
-    
     int n = S->nx * S->ny * S->nz;
     double *sigma = new double[n];
+
+    //z_0 = 1/c * r   initial guess
+    axy(n, 1.0/(S->value_c), r, z);
+
     for (int k=0; k<iter_max; k++)
     {
-        //sigma(i) = sum_nodiag A(i,j,k)*z(loc(i,j,k))
-        apply_stencil3d(&op2,z,sigma);
+        //sigma = Az
+        apply_stencil3d(S,z,sigma);
         
-        //r = b - Ax
-        //sigma =(r - sigma)/c, c = a_ii
+        //z = D^{-1} (r - (A-D)z ) = z + (r - Az)/c, c = a_ii (constant)
         #pragma omp parallel for schedule(static)
         for (int i=0; i<n; i++)
         {
-            z[i] = (r[i] - sigma[i])/S->value_c;   
+            z[i] += (r[i] - sigma[i])/S->value_c;   
         }
     }
     delete [] sigma;
