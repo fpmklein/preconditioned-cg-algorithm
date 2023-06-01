@@ -13,3 +13,4 @@ export  OMP_PROC_BIND=close
 export  OMP_PLACES=cores
 
 srun ./main_cg_poisson_jacobi.x $n >> cg_poisson_jacobi_2it_$n$OMP_NUM_THREADS.out
+
