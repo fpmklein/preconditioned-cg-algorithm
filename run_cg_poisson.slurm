@@ -13,4 +13,3 @@ export  OMP_PROC_BIND=close
 export  OMP_PLACES=cores
 
 srun ./main_cg_poisson_cheb.x $n >> cg_poisson_cheb_10it_$n$OMP_NUM_THREADS.out
-

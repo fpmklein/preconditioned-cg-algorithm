@@ -487,7 +487,7 @@ std::pair<double,double> explicit_eigenvalues(stencil3d const* S)
 
     delete[] eigenval;
     
-    return {1.1*alpha, 0.9*beta};
+    return {alpha, beta};
 }
 
 std::pair<double,double> interval_eigenvalues(stencil3d const* S)
@@ -586,6 +586,59 @@ void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, do
 {
     int n = S->nx * S->ny * S->nz;
     double *y = new double[n];
+    double *z_old = new double[n];
+
+    double delta = 0.5*(beta - alpha);
+    double theta = 0.5*(beta + alpha);
+    double sigma = theta / delta; //
+
+    //kappa_0 = 1/sigma
+    double kappa_old = 1.0 / sigma;
+    double kappa;
+    
+    //z_{0} = 1/theta * r
+    axy(n, 1.0/theta, r, z_old);
+    
+    //z_{1} = 2 kappa_old / delta (2*r - Ar / theta)
+    apply_stencil3d(S, z_old, z);
+    axpby(n,4.0*kappa_old/delta, r, - 2.0*kappa_old/delta, z);
+    
+    for (int k=1; k<iter_max; k++)
+    {
+        //z_old = kappa_old*(z - z_old)
+        axpby(n, kappa_old, z, -kappa_old, z_old);
+        
+        //y = Az
+        apply_stencil3d(S, z, y);
+        
+        //y = 2/delta (r - y), y = Az
+        axpby(n, 2.0/delta, r, - 2.0/delta, y);
+        
+        kappa = 1.0 / (2.0*sigma - kappa_old);
+        //y = kappa*(z_old - y), 
+        //where z_old = kappa_old*(z - z_old), y = 2/delta (r - Az)
+        axpby(n, kappa, z_old, kappa, y);
+        
+        //z_old = z_k
+        copy(n, z, z_old);
+        
+        //z_{k+1} = z_k + y, y = kappa * (kappa_old*(z - z_old) - 2/delta * (r-Az))
+        axpby(n, 1.0, y, 1.0, z);
+        
+        kappa_old = kappa;
+        
+    }
+    
+    delete [] y;
+    delete [] z_old;
+
+    return;
+}
+
+/*void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, double const alpha, double const beta)
+{
+    int n = S->nx * S->ny * S->nz;
+    double *y = new double[n];
     double *d = new double[n];
     double *r_star = new double[n];
     
@@ -632,13 +685,6 @@ void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, do
     delete [] d;
     delete [] r_star;
     return;
-}
-
-//M^{-1} Ax = M^{-1] b
-//chebychev -> x_new
-// z = 
-// r = b - Ax
-// 
-
+}*/
 
 
