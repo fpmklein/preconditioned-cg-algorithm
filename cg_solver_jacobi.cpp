@@ -22,14 +22,12 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_
   double *q = new double[n];
   double *r = new double[n];
   double *z = new double[n];
-  //double *x_old = new double[n];
   
   double alpha;
   double beta;
   double rho=1.0;
   double rho_old=0.0; 
   double rho_r=1.0;
-  //double rho_x=1.0;
   
   {
       Timer t("init", op->nx, op->ny, op->nz);
@@ -60,11 +58,6 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_
       Timer t("init", op->nx, op->ny, op->nz);
       init(n, z, 0.0);
   }
-  /*  //x_old=0
-  {
-      Timer t("init", op->nx, op->ny, op->nz);
-      init(n, x_old, 0.0);
-  }*/
   
   // start CG iteration
   int iter = -1;
@@ -94,7 +87,7 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_
     }
 
     // check for convergence or failure
-    if ((std::sqrt(rho_r) < tol) || (iter > maxIter) )//|| (std::sqrt(rho_x) < tol))
+    if ((std::sqrt(rho_r) < tol) || (iter > maxIter) )
     {
       break;
     }
@@ -103,7 +96,7 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_
     
     {
         Timer t("apply_preconditioning", op->nx, op->ny, op->nz);
-        apply_jacobi_iterations(op, r, z, 2);
+        apply_jacobi_iterations(op, r, z, 10);
     }
     
     // rho = <r, z>
@@ -141,25 +134,11 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_
 
     alpha = rho / beta;
 
-    /*//x_old = x
-    {
-        Timer t("copy", op->nx, op->ny, op->nz);
-        copy(n, x, x_old);
-    }*/
     // x = x + alpha * p
     {
       Timer t("axpby", op->nx, op->ny, op->nz);
       axpby(n,alpha,p,1.0,x);
     }
-    /*//for stopping criteria, ||x-x_old||_2
-    {
-        Timer t("axpby", op->nx, op->ny, op->nz);
-        axpby(n, 1.0, x, - 1.0, x_old);
-    }
-    {
-        Timer t("dot", op->nx, op->ny, op->nz);
-        rho_x = dot(n, x_old, x_old);
-    }*/
     
     // r = r - alpha * q
     {
@@ -174,7 +153,6 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_
   delete [] q;
   delete [] r;
   delete [] z;
-  //delete [] x_old;
   
   // return number of iterations and achieved residual
   *resNorm = rho_r;

@@ -444,10 +444,12 @@ std::pair<double,double> explicit_eigenvalues(stencil3d const* S)
     
     int n = S->nx * S->ny * S->nz;
     
-    double dx=1.0/(S->nx-1), dy=1.0/(S->ny-1), dz=1.0/(S->nz-1);
+    double dx=1.0/(S->nx - 1.0), dy=1.0/(S->ny - 1.0), dz=1.0/(S->nz - 1.0);
     
-    double *eigenval = new double[n];
-    
+    int m = (S->nx - 2) * (S->ny - 2) * (S->nz - 2);
+    double *eigenval = new double[m];
+   init(m, eigenval, - 1.0);
+   int index = 0;
     #pragma omp parallel 
     #pragma omp for ordered
     for (int k = 1; k < S->nz - 1; k++)
@@ -457,28 +459,42 @@ std::pair<double,double> explicit_eigenvalues(stencil3d const* S)
             for (int i = 1; i < S->nx - 1; i++)
             {
                 #pragma omp ordered
-                eigenval[S->index_c(i,j,k)] = 4*(sin(M_PI*i/(2*S->nx))*sin(M_PI*i/(2*S->nx)) + sin(M_PI*j/(2*S->ny))*sin(M_PI*j/(2*S->ny)) + sin(M_PI*k/(2*S->nz))*sin(M_PI*k/(2*S->nz)))/(dx*dx);
+                eigenval[index] = 4.0*(sin(M_PI*i/(2.0*(S->nx - 1.0)))*sin(M_PI*i/(2.0*(S->nx - 1.0))) + sin(M_PI*j/(2.0*(S->ny - 1.0)))*sin(M_PI*j/(2.0*(S->ny - 1.0))) + sin(M_PI*k/(2.0*(S->nz - 1.0)))*sin(M_PI*k/(2.0*(S->nz - 1.0))))/(dx*dx);
+                //std::cout << "ev[" << index << "] = " << eigenval[index] << std::endl;
+                index++;
+                //(i - 1) + (j - 1)*(S->nx - 2) + (k - 1)*(S->ny - 2)*(S->nx - 2)
             }
         }
     }
+    std::cout << "index = " << index << ", m = " << m << std::endl;
     
     // Find the minimum and maximum eigenvalues in a simple way
-    double alpha = eigenval[0];
-    double beta = eigenval[0];
-
-    #pragma omp parallel for reduction(min:alpha) reduction(max:beta)
-    for (int l = 1; l < n; l++) {
+    double alpha = eigenval[S->nx / 2];
+    double beta = eigenval[S->nx / 2];
+    //std::cout<< "eigenvalues" << sinl(M_PI/(2.0*S->nx))*sinl(M_PI/(2.0*S->nx)) << std::endl;
+    //std::cout << "alpha = " << alpha << "\t" << "beta = " << beta << std::endl;
+    //#pragma omp parallel for reduction(min:alpha) reduction(max:beta)
+    for (int l = 0; l < m; l++) {
         if (eigenval[l] < alpha) {
             alpha = eigenval[l];
         }
         if (eigenval[l] > beta) {
             beta = eigenval[l];
         }
+        //std::cout << alpha << std::setprecision(16) << "\t" << beta << std::setprecision(16)<< std::endl;
     }
 
 
     delete[] eigenval;
     
+    return {1.1*alpha, 0.9*beta};
+}
+
+std::pair<double,double> interval_eigenvalues(stencil3d const* S)
+{
+    double sum = abs(S->value_n) + abs(S->value_s) + abs(S->value_e) + abs(S->value_w) + abs(S->value_t) + abs(S->value_b);
+    double alpha = S->value_c - sum;
+    double beta = sum + S->value_c;
     return {alpha, beta};
 }
 
@@ -562,70 +578,67 @@ std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max)
     delete [] p;
     delete [] q;
     //return alpha := lambda_min(S), beta := lambda_max(S)
-    return {alpha, beta};
+    return {1.1*alpha, 0.9*beta};
 
 }
 
 void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, double const alpha, double const beta)
 {
     int n = S->nx * S->ny * S->nz;
-    double *z_old = new double[n];
     double *y = new double[n];
+    double *d = new double[n];
+    double *r_star = new double[n];
+    
+    //z_0 = 0;
+    init(n,z,0.0);
+    
+    //r_star_0 = r - Az_0, z_0 = 0 -> Az_0 = 0 -> r_star_0 = r, (no apply_stencil3d needed)
+    copy(n, r, r_star);
+    
+    //r = b - A x_0
     
     //auto [alpha, beta] = extremal_eigenvalues(S, n);
     double delta = 0.5*(beta - alpha);
     double theta = 0.5*(beta + alpha);
-    double sigma = theta / delta;
-    
+    double sigma = theta / delta; //
+
     //kappa_0 = 1/sigma
     double kappa_old = 1.0 / sigma;
-    //kappa_1 = 1/(2*sigma - kappa_0)
-    double kappa = 1.0 / (2.0*sigma - kappa_old);
+    double kappa;
+    //d_{0} = 1/theta * r
+    axy(n, 1.0/theta, r_star, d);
     
-    //z_{0} = 1/theta * r
-    axy(n,  1.0/theta, r, z_old);
-    
-    //z = Ar
-    apply_stencil3d(S, r, z);
-     
-    double c = 2.0 * kappa / delta;
-    //z = c * (2r - 1/theta * z)
-    axpby(n,  2.0*c, r, -c/theta, z);
-    
-    if (iter_max == 1)
+    for (int k=0; k<iter_max; k++)
     {
-        copy(n, z_old, z);
-        //return z = z_0
-    }
-    //if iter_max == 2, return z = z_1
-    else if (iter_max > 2)
-    {
-        for (int k=1; k<iter_max; k++)
-        {
-            //y_{k} = A z_{k}
-            apply_stencil3d(S,z,y);
-            //y_{k} = 2/delta * (r-y_{k})
-            axpby(n, 2.0/delta, r, - 2.0/delta, y);
-            
-            //kappa_{k} = \kappa_{k-1}
-            kappa_old = kappa;
-            
-            //kappa_{k+1} = 1/(2*sigma 0 kappa_{k})
-            kappa = 1.0 / (2.0*sigma - kappa_old);
-            
-            //y_{k} = kappa_{k} * z_{k-1} + y_{k}
-            axpby(n, -kappa_old, z_old, 1.0, y);
-            
-            //z_old = z_{k-1} for new iteration k=k+1
-            copy(n, z, z_old);
-            
-            //z_{k+1} = kappa_{k+1}(2*sigma*z_{k}+ y_{k})
-            axpby(n, kappa*2.0*sigma, z, kappa, y);
-        }
-        //return z_{k+1}
+        //z_{k+1} = z_{k} + d_{k}
+        axpby(n,1.0, d, 1.0, z);
+        //y_{k} = A d_{k}
+        apply_stencil3d(S,z,y);
+        
+        //r_{k+1} = r_{k} - y_{k}
+        axpby(n, - 1.0, y, 1.0, r_star);
+        
+        //kappa_{k+1} = 1/(2*sigma - kappa_{k})
+        kappa = 1.0 / (2.0*sigma - kappa_old);
+        
+        //d_{k+1} = kappa_{k+1} kappa_{k} d_k - 2*kappa_{k+1}/delta * r_{k+1}
+        axpby(n, - 2.0 * kappa / delta, r_star, kappa*kappa_old, d);
+        
+        //kappa_{k} = \kappa_{k+1}
+        kappa_old = kappa;
     }
     
-    delete [] z_old;
     delete [] y;
+    delete [] d;
+    delete [] r_star;
     return;
 }
+
+//M^{-1} Ax = M^{-1] b
+//chebychev -> x_new
+// z = 
+// r = b - Ax
+// 
+
+
+
