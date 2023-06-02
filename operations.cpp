@@ -363,6 +363,8 @@ void apply_jacobi_iterations(stencil3d const* S,
     //z_0 = 1/c * r   initial guess
     axy(n, 1.0/(S->value_c), r, z);
 
+    //#pragma omp parallel 
+    //#pragma omp for ordered
     for (int k=0; k<iter_max; k++)
     {
         //sigma = Az
@@ -603,6 +605,8 @@ void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, do
     apply_stencil3d(S, z_old, z);
     axpby(n,4.0*kappa_old/delta, r, - 2.0*kappa_old/delta, z);
     
+    //#pragma omp parallel 
+    //#pragma omp for ordered
     for (int k=1; k<iter_max; k++)
     {
         //z_old = kappa_old*(z - z_old)
@@ -615,14 +619,14 @@ void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, do
         axpby(n, 2.0/delta, r, - 2.0/delta, y);
         
         kappa = 1.0 / (2.0*sigma - kappa_old);
-        //y = kappa*(z_old - y), 
+        //y = kappa*(z_old + y), 
         //where z_old = kappa_old*(z - z_old), y = 2/delta (r - Az)
         axpby(n, kappa, z_old, kappa, y);
         
         //z_old = z_k
         copy(n, z, z_old);
         
-        //z_{k+1} = z_k + y, y = kappa * (kappa_old*(z - z_old) - 2/delta * (r-Az))
+        //z_{k+1} = z_k + y, y = kappa * (kappa_old*(z - z_old) + 2/delta * (r-Az))
         axpby(n, 1.0, y, 1.0, z);
         
         kappa_old = kappa;
