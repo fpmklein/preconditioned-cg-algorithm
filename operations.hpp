@@ -99,6 +99,8 @@ std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max);
 
 std::pair<double,double> explicit_eigenvalues(stencil3d const* S);
 
+std::pair<double,double> interval_eigenvalues(stencil3d const* S);
+
 void apply_cheb(stencil3d const* S, 
                 double const* r, double* z, 
                 int iter_max, 
