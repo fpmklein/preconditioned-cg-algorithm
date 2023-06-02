@@ -669,6 +669,7 @@ void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, do
     {
         //z_{k+1} = z_{k} + d_{k}
         axpby(n,1.0, d, 1.0, z);
+
         //y_{k} = A d_{k}
         apply_stencil3d(S,z,y);
         

@@ -9,7 +9,7 @@
 #include <iomanip>
 
 //preconditioned cg solver
-void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_cg_solver
+void cg_solver(stencil3d const* op, int n, double* x, double const* b, //cg_solver_cheb
         double tol, int maxIter,
         double* resNorm, int* numIter,
         int verbose)
@@ -94,7 +94,7 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_
     }
 
     // check for convergence or failure
-    if ((std::sqrt(rho_r) < tol) || (iter > maxIter) )
+    if ((std::sqrt(rho_r) < tol) || (iter > maxIter))
     {
       break;
     }

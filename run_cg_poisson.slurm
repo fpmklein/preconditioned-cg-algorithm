@@ -9,8 +9,8 @@
 # run CG for a n^3 Poisson problem
 n=128
 export OMP_NUM_THREADS=48
-export  OMP_PROC_BIND=close
-export  OMP_PLACES=cores
+export OMP_PROC_BIND=close
+export OMP_PLACES=cores
 
 srun ./main_cg_poisson_jacobi.x $n >> cg_poisson_jacobi_20it_$n$OMP_NUM_THREADS.out
 srun ./main_cg_poisson_cheb.x $n >> cg_poisson_cheb_20it_$n$OMP_NUM_THREADS.out
