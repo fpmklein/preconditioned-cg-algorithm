@@ -615,14 +615,14 @@ void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, do
         axpby(n, 2.0/delta, r, - 2.0/delta, y);
         
         kappa = 1.0 / (2.0*sigma - kappa_old);
-        //y = kappa*(z_old - y), 
+        //y = kappa*(z_old + y), 
         //where z_old = kappa_old*(z - z_old), y = 2/delta (r - Az)
         axpby(n, kappa, z_old, kappa, y);
         
         //z_old = z_k
         copy(n, z, z_old);
         
-        //z_{k+1} = z_k + y, y = kappa * (kappa_old*(z - z_old) - 2/delta * (r-Az))
+        //z_{k+1} = z_k + y, y = kappa * (kappa_old*(z - z_old) + 2/delta * (r-Az))
         axpby(n, 1.0, y, 1.0, z);
         
         kappa_old = kappa;
