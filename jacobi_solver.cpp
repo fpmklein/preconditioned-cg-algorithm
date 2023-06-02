@@ -49,7 +49,7 @@ void cg_solver(stencil3d const* op, int n, double* x, double const* b, //jacobi_
         
         axpby(n, 1.0, b, - 1.0, r);
         rho = dot(n,r,r);
-        if ((std::sqrt(rho) < tol) || (iter > maxIter) )//|| (std::sqrt(rho_x) < tol) )
+        if ((std::sqrt(rho) < tol) || (iter > maxIter) )
         {
            break;
         }
