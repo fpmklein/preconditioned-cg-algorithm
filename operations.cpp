@@ -569,63 +569,50 @@ std::pair<double,double> extremal_eigenvalues(stencil3d const* S, int iter_max)
 void apply_cheb(stencil3d const* S, double const* r, double* z, int iter_max, double const alpha, double const beta)
 {
     int n = S->nx * S->ny * S->nz;
-    double *z_old = new double[n];
     double *y = new double[n];
+    double *d = new double[n];
+    double *r_star = new double[n];
+    
+    //z_0 = 0;
+    init(n,z,0.0);
+
+    //r_star_0 = r - Az_0, z_0 = 0 -> Az_0 = 0 -> r_star_0 = r, (no apply_stencil3d needed)
+    copy(n, r, r_star);
     
     //auto [alpha, beta] = extremal_eigenvalues(S, n);
     double delta = 0.5*(beta - alpha);
     double theta = 0.5*(beta + alpha);
-    double sigma = theta / delta;
+    double sigma = theta / delta; //
     
     //kappa_0 = 1/sigma
     double kappa_old = 1.0 / sigma;
-    //kappa_1 = 1/(2*sigma - kappa_0)
-    double kappa = 1.0 / (2.0*sigma - kappa_old);
+    double kappa;
+    //d_{0} = 1/theta * r
+    axy(n,  1.0/theta, r_star, d);
     
-    //z_{0} = 1/theta * r
-    axy(n,  1.0/theta, r, z_old);
-    
-    //z = Ar
-    apply_stencil3d(S, r, z);
-     
-    double c = 2.0 * kappa / delta;
-    //z = c * (2r - 1/theta * z)
-    axpby(n,  2.0*c, r, -c/theta, z);
-    
-    if (iter_max == 1)
+    for (int k=0; k<iter_max; k++)
     {
-        copy(n, z_old, z);
-        //return z = z_0
-    }
-    //if iter_max == 2, return z = z_1
-    else if (iter_max > 2)
-    {
-        for (int k=1; k<iter_max; k++)
-        {
-            //y_{k} = A z_{k}
-            apply_stencil3d(S,z,y);
-            //y_{k} = 2/delta * (r-y_{k})
-            axpby(n, 2.0/delta, r, - 2.0/delta, y);
-            
-            //kappa_{k} = \kappa_{k-1}
-            kappa_old = kappa;
-            
-            //kappa_{k+1} = 1/(2*sigma 0 kappa_{k})
-            kappa = 1.0 / (2.0*sigma - kappa_old);
-            
-            //y_{k} = kappa_{k} * z_{k-1} + y_{k}
-            axpby(n, -kappa_old, z_old, 1.0, y);
-            
-            //z_old = z_{k-1} for new iteration k=k+1
-            copy(n, z, z_old);
-            
-            //z_{k+1} = kappa_{k+1}(2*sigma*z_{k}+ y_{k})
-            axpby(n, kappa*2.0*sigma, z, kappa, y);
-        }
-        //return z_{k+1}
+        //z_{k+1} = z_{k} + d_{k}
+        axpby(n,1.0, d, 1.0, z);
+        
+        //y_{k} = A d_{k}
+        apply_stencil3d(S,d,y);
+        
+        //r_{k+1} = r_{k} - y_{k}
+        axpby(n, - 1.0, y, 1.0, r_star);
+        
+        //kappa_{k+1} = 1/(2*sigma - kappa_{k})
+        kappa = 1.0 / (2.0*sigma - kappa_old);
+        
+        //d_{k+1} = kappa_{k+1} \kappa_{k} d_k - 2*kappa_{k+1}/delta * r_{k+1}
+        axpby(n, - 2.0 * kappa / delta, r_star, kappa*kappa_old, d);
+        
+        //kappa_{k} = \kappa_{k+1}
+        kappa_old = kappa;
     }
     
-    delete [] z_old;
     delete [] y;
+    delete [] d;
+    delete [] r_star;
     return;
 }
