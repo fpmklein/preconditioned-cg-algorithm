@@ -450,7 +450,6 @@ std::pair<double,double> explicit_eigenvalues(stencil3d const* S)
     
     int m = (S->nx - 2) * (S->ny - 2) * (S->nz - 2);
     double *eigenval = new double[m];
-   init(m, eigenval, - 1.0);
    int index = 0;
     #pragma omp parallel 
     #pragma omp for ordered
